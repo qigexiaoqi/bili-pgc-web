@@ -51,7 +51,6 @@ jobs:
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: bili-pgc-web ${{ steps.ver.outputs.version }}
-          generate_release_notes: true
           files: |
             dist/*.zip
             dist/*.sha256
