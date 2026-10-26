@@ -1,0 +1,72 @@
+# 打 tag 时自动构建发布包并创建 GitHub Release
+#   用法： git tag -a v1.6 -m "v1.6" && git push origin v1.6
+#   产物： bili-pgc-web-<version>.zip + .sha256（含 server/core/前端/文档/docker）
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要发布的 tag（已存在），例如 v1.6"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        run: |
+          REF="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$REF" >> "$GITHUB_OUTPUT"
+          echo "version=${REF#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release zip
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          NAME="bili-pgc-web-${VERSION}"
+          mkdir -p "dist/${NAME}"
+          # 只打包运行所需文件，排除 .git / CI / 运行产物
+          cp -r server.py core.py index.html web.bat README.md LICENSE CHANGELOG.md \
+                SECURITY.md CONTRIBUTING.md .gitignore .gitattributes .editorconfig \
+                docs docker "dist/${NAME}/"
+          cd dist
+          zip -qr "${NAME}.zip" "${NAME}"
+          sha256sum "${NAME}.zip" > "${NAME}.zip.sha256"
+          echo "--- 包内容 ---"
+          unzip -l "${NAME}.zip"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: bili-pgc-web ${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/*.zip
+            dist/*.sha256
+          body: |
+            ## 用法
+
+            1. 下载 `bili-pgc-web-${{ steps.ver.outputs.version }}.zip` 并解压；
+            2. 装好 `ffmpeg`（`winget install -e --id Gyan.FFmpeg` / `brew install ffmpeg` / `apt install ffmpeg`）；
+            3. Windows 双击 `web.bat`，或 `python server.py --host 0.0.0.0`；
+            4. 浏览器打开 `http://127.0.0.1:8737/`。
+
+            校验下载：
+
+            ```bash
+            sha256sum -c bili-pgc-web-${{ steps.ver.outputs.version }}.zip.sha256
+            ```
+
+            详细说明见包内的 `README.md` 与 `docs/WATERMARK.md`。
