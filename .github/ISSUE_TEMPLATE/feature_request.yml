@@ -1,0 +1,30 @@
+name: Feature request
+description: 想要的新功能
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的场景
+      description: 先说清用途，比直接给方案更有用
+      placeholder: 我想在下载完成后自动跳到下一季……
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的行为
+      placeholder: 页面上加一个「自动续季」开关……
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 影响面
+      options:
+        - label: 只用标准库就能实现
+        - label: 会改动前端 UI
+        - label: 会改动 HTTP 接口

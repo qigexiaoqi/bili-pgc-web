@@ -1,0 +1,30 @@
+# ---- 运行时产物（绝不提交）----
+cookies.txt
+*.cookie
+.browser-profile/
+downloads/
+bin/
+*.log
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 编辑器 / 操作系统 ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- 本地私有 ----
+.env
+.env.*
+*.local

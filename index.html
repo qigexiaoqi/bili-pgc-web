@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B 站 PGC 下载器 · Web</title>
+<style>
+  :root{
+    --bg:#0f1115; --bg2:#151922; --card:#1a1f2b; --line:#262d3b;
+    --text:#e8ecf3; --muted:#8b95a7; --pink:#fb7299; --pink2:#ff8fb1;
+    --blue:#4da3ff; --ok:#3ddc97; --warn:#ffcc66; --err:#ff6b6b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(1200px 600px at 15% -10%, #1d2433 0%, var(--bg) 55%) fixed;
+    color:var(--text); font:14px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:1100px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--pink),#ff9ec0);
+    display:grid;place-items:center;font-weight:800;color:#231018;font-size:18px;box-shadow:0 6px 18px rgba(251,114,153,.35)}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.3px}
+  h1 span{color:var(--muted);font-weight:500;font-size:13px;margin-left:8px}
+  .chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+    background:var(--card);border:1px solid var(--line);color:var(--muted);font-size:12px}
+  .chip b{color:var(--text);font-weight:600}
+  .chip.ok{border-color:rgba(61,220,151,.4);color:var(--ok)}
+  .chip.warn{border-color:rgba(255,204,102,.4);color:var(--warn)}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01)),var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type=text],input[type=number],select{
+    background:#11151d;border:1px solid var(--line);color:var(--text);border-radius:10px;
+    padding:10px 12px;font-size:14px;outline:none;transition:.18s border-color,.18s box-shadow}
+  input[type=text]:focus,select:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(251,114,153,.12)}
+  #url{flex:1;min-width:280px}
+  button{border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:600;
+    cursor:pointer;transition:.18s transform,.18s filter,.18s background;color:#fff;background:#2a3242}
+  button:hover{filter:brightness(1.12)}
+  button:active{transform:translateY(1px)}
+  button.primary{background:linear-gradient(135deg,var(--pink),#ff87ab);color:#2a0d18;
+    box-shadow:0 8px 20px rgba(251,114,153,.28)}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  button:disabled{opacity:.45;cursor:not-allowed;filter:none;box-shadow:none}
+  .hint{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .hidden{display:none!important}
+
+  .season{display:flex;gap:14px;align-items:flex-start}
+  .cover{width:78px;height:106px;border-radius:10px;object-fit:cover;background:#0c0f15;flex:none;
+    border:1px solid var(--line)}
+  .season h2{margin:2px 0 4px;font-size:16px}
+  .meta{color:var(--muted);font-size:12.5px}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px}
+  .toolbar .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+  .btn-sm{padding:6px 11px;font-size:12.5px;border-radius:8px;background:#232b39;border:1px solid var(--line)}
+  .btn-sm:hover{background:#2b3446}
+  #range{width:150px;padding:7px 10px;font-size:12.5px}
+
+  .eps{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px;
+    max-height:290px;overflow:auto;padding:4px 2px}
+  .ep{display:flex;gap:8px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);
+    border-radius:10px;background:#141924;cursor:pointer;transition:.15s}
+  .ep:hover{border-color:#35506e;background:#16202e}
+  .ep.on{border-color:var(--pink);background:rgba(251,114,153,.1)}
+  .ep input{accent-color:var(--pink);margin-top:2px;flex:none}
+  .ep .t{font-size:12.8px;line-height:1.35}
+  .ep .no{color:var(--muted);font-size:11.5px;margin-bottom:2px;display:flex;gap:6px;align-items:center}
+  .tag{font-size:10.5px;padding:1px 6px;border-radius:6px;background:#2a3346;color:#a9b6cc}
+  .tag.vip{background:rgba(251,114,153,.18);color:var(--pink2)}
+  .tag.pv{background:rgba(77,163,255,.16);color:var(--blue)}
+
+  .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:4px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:12px;color:var(--muted)}
+
+  .bar{height:7px;border-radius:99px;background:#0d1119;overflow:hidden;border:1px solid #1c2330}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),#ffa8c2);
+    transition:width .25s ease}
+  .overall{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .overall .bar{flex:1}
+  .overall b{font-variant-numeric:tabular-nums;color:var(--pink2)}
+  .items{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}
+  .item{padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#131822}
+  .item .top{display:flex;gap:10px;align-items:center;font-size:12.8px}
+  .item .top .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .top .st{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .item .bar{margin-top:7px}
+  .st.done{color:var(--ok)} .st.failed{color:var(--err)} .st.running{color:var(--pink2)}
+  .st.skipped{color:var(--warn)}
+  pre#log{margin:10px 0 0;padding:10px 12px;background:#0b0e13;border:1px solid var(--line);
+    border-radius:10px;color:#9fb0c7;font:12px/1.55 ui-monospace,Consolas,monospace;
+    max-height:190px;overflow:auto;white-space:pre-wrap}
+  .empty{color:var(--muted);font-size:13px;padding:10px 2px}
+  .mask{position:fixed;inset:0;background:rgba(6,8,12,.72);display:none;place-items:center;z-index:20;
+    padding:20px;backdrop-filter:blur(3px)}
+  .mask.show{display:grid}
+  .dlg{width:min(560px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .dlg h3{margin:0 0 6px;font-size:16px}
+  .dlg p{margin:6px 0 14px;color:var(--muted);font-size:12.8px;line-height:1.7}
+  .dlg textarea{width:100%;min-height:86px;resize:vertical;background:#11151d;border:1px solid var(--line);
+    color:var(--text);border-radius:10px;padding:10px 12px;font:12.5px/1.5 ui-monospace,Consolas,monospace;outline:none}
+  .dlg textarea:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(251,114,153,.12)}
+  .dlg .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .dlg .actions .sp{flex:1}
+  .dlg hr{border:0;border-top:1px dashed var(--line);margin:16px 0}
+  .dlg code{font-size:11.5px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:#232b39;border:1px solid var(--line);color:var(--text);padding:11px 18px;border-radius:11px;
+    opacity:0;pointer-events:none;transition:.25s;box-shadow:0 12px 30px rgba(0,0,0,.45);z-index:9;font-size:13px}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{border-color:rgba(255,107,107,.45)}
+  .fin{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:22px;line-height:1.9}
+  code{background:#0b0e13;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:12px}
+  @media (max-width:640px){ .chips{margin-left:0} #url{min-width:100%} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">B</div>
+    <h1>B 站 PGC 下载器<span>番剧 / 国创 / 电影 / 纪录片 / 课程</span></h1>
+    <div class="chips">
+      <span class="chip" id="chip-acc">账号：读取中…</span>
+      <span class="chip" id="chip-ff">ffmpeg：…</span>
+      <span class="chip" id="chip-sync">同步：连接中…</span>
+      <button class="btn-sm" id="btn-login">登录 / 换号</button>
+    </div>
+  </header>
+
+  <section class="card hidden" id="sync-warn" style="border-color:rgba(255,107,107,.55)">
+    <b style="color:var(--err)">同步失败</b>
+    <div class="meta" id="sync-warn-msg" style="margin-top:6px;line-height:1.8"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <input id="url" type="text" placeholder="粘贴 ep / ss / md 链接或 BV 号，例如 https://www.bilibili.com/bangumi/play/ep693247" autofocus>
+      <button class="primary" id="btn-resolve">解析</button>
+    </div>
+    <div class="hint">支持整季链接（ss）会自动列出全部剧集；VIP 集需要登录大会员账号。解析后可选集、选画质。</div>
+  </section>
+
+  <section class="card hidden" id="sec-season">
+    <div class="season">
+      <img class="cover" id="cover" alt="" referrerpolicy="no-referrer">
+      <div style="flex:1">
+        <h2 id="s-title">—</h2>
+        <div class="meta" id="s-meta"></div>
+        <div class="meta" id="s-acc" style="margin-top:4px"></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn-sm" data-sel="all">全选</button>
+      <button class="btn-sm" data-sel="main">仅正片</button>
+      <button class="btn-sm" data-sel="pv">仅 PV/花絮</button>
+      <button class="btn-sm" data-sel="invert">反选</button>
+      <button class="btn-sm" data-sel="none">清空</button>
+      <span class="sep"></span>
+      <input id="range" type="text" placeholder="按序号选集：1-3,7">
+      <button class="btn-sm" id="btn-range">应用</button>
+      <span class="sep"></span>
+      <span class="chip" id="sel-count">已选 0</span>
+    </div>
+
+    <div class="eps" id="eps"></div>
+
+    <div class="opts" style="margin-top:16px">
+      <div class="field">
+        <label>画质</label>
+        <select id="sel-qn"></select>
+      </div>
+      <div class="field">
+        <label>编码</label>
+        <select id="sel-codec">
+          <option value="auto">自动（优先高码率）</option>
+          <option value="avc">AVC / H.264</option>
+          <option value="hevc">HEVC / H.265</option>
+          <option value="av1">AV1</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>音轨</label>
+        <select id="sel-audio">
+          <option value="auto">自动（最高）</option>
+          <option value="flac">Hi-Res 无损</option>
+          <option value="dolby">杜比全景声</option>
+          <option value="30280">192K</option>
+          <option value="30232">132K</option>
+          <option value="30216">64K</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>分片线程</label>
+        <select id="sel-threads">
+          <option>2</option><option selected>4</option><option>6</option><option>8</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>限速（整任务总带宽）</label>
+        <select id="sel-limit">
+          <option value="0">不限速</option>
+          <option value="256">256 KB/s</option>
+          <option value="512">512 KB/s</option>
+          <option value="1024">1 MB/s</option>
+          <option value="2048">2 MB/s</option>
+          <option value="4096">4 MB/s</option>
+          <option value="8192">8 MB/s</option>
+          <option value="custom">自定义…</option>
+        </select>
+        <input id="limit-custom" type="number" min="16" step="16" placeholder="KB/s"
+               class="hidden" style="padding:7px 10px;font-size:12.5px">
+      </div>
+      <div class="field">
+        <label>去水印方式</label>
+        <select id="sel-delogo">
+          <option value="">关闭（只封装，不重编码）</option>
+          <option value="delogo">插值 delogo（画质最好 · 小块 logo）</option>
+          <option value="blur">局部模糊（半透明 / 大字）</option>
+          <option value="mosaic">马赛克（明确遮盖）</option>
+          <option value="crop">裁边（区域内无损 · 改构图）</option>
+          <option value="mask">遮罩 removelogo（任意形状）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>水印位置</label>
+        <select id="sel-area">
+          <option value="tl">左上角</option>
+          <option value="tr">右上角</option>
+          <option value="bl">左下角</option>
+          <option value="br">右下角</option>
+          <option value="custom">自定义 x:y:w:h</option>
+        </select>
+        <input id="delogo-custom" type="text" placeholder="24:24:320:80（多个用 ; 分隔）"
+               class="hidden" style="padding:7px 10px;font-size:12.5px">
+      </div>
+      <div class="field">
+        <label>只处理时段（可选）</label>
+        <input id="delogo-range" type="text" placeholder="留空=全片，如 0-30"
+               style="padding:9px 11px;font-size:13px">
+      </div>
+      <div class="field hidden" id="mask-field">
+        <label>遮罩图（白色=要抹掉）</label>
+        <input id="delogo-mask" type="text" placeholder="mask.png（放 /config 目录）"
+               style="padding:9px 11px;font-size:13px">
+      </div>
+    </div>
+    <div class="hint" id="dlg-hint" style="margin-top:8px">
+      B 站视频里的可见水印都是<b>烧进画面像素</b>的（播放器 DOM / playurl 里都没有水印层，实测如此），
+      来源只有：UP 主剪辑自带、投稿时勾选的「我的水印」（转码时压在角上）、少数防盗录跑马灯。
+      普通番剧/影视多数本来就没水印 —— 这种情况保持「关闭」，用 <code>-c copy</code> 无损封装最快最好。
+      真要处理：小块静态 logo 用<b>插值</b>；半透明大字用<b>模糊</b>；贴边且能接受改构图用<b>裁边</b>（区域内零损失）；
+      形状不规则用<b>遮罩</b>（自备 mask 图）。除裁边外都会重编码，HDR 会转 SDR。
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="btn-start" disabled>开始下载</button>
+      <button class="ghost" id="btn-cancel" disabled>取消</button>
+      <label class="chip" style="cursor:pointer">
+        <input type="checkbox" id="chk-over"> 覆盖已存在
+      </label>
+      <span class="meta" id="out-path"></span>
+    </div>
+  </section>
+
+  <section class="card hidden" id="sec-prog">
+    <div class="overall">
+      <b id="p-ov">0%</b>
+      <div class="bar"><i id="p-ovbar"></i></div>
+      <span class="meta" id="p-state"></span>
+      <button class="ghost" id="btn-cancel2" style="padding:6px 12px;font-size:12.5px">取消下载</button>
+    </div>
+    <div class="row" id="live-limit" style="margin:0 0 12px;gap:6px">
+      <span class="meta">运行中限速：</span>
+      <button class="btn-sm" data-limit="0">不限速</button>
+      <button class="btn-sm" data-limit="128">128K</button>
+      <button class="btn-sm" data-limit="512">512K</button>
+      <button class="btn-sm" data-limit="1024">1M</button>
+      <button class="btn-sm" data-limit="2048">2M</button>
+      <button class="btn-sm" data-limit="8192">8M</button>
+      <span class="chip" id="limit-now">当前：—</span>
+    </div>
+    <div class="items" id="items"></div>
+    <pre id="log"></pre>
+    <div class="fin hidden" id="fin">
+      <button class="primary" id="btn-again">继续下载（回到输入链接）</button>
+    </div>
+  </section>
+
+  <footer>
+    页面地址：<code id="f-url"></code> · 输出目录：<code id="f-out"></code><br>
+    前端 <span id="f-ver">v1.6</span> · 服务端 <span id="f-sver">…</span>
+    <span id="f-host"></span><br>
+    登录走本机浏览器抓 Cookie，不上传任何数据。
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="mask" id="mask">
+  <div class="dlg">
+    <h3>登录 / 换号</h3>
+    <p>两种方式任选。部署在 NAS / Docker 里时没有浏览器，请用下面的「粘贴 Cookie」。</p>
+
+    <div class="actions">
+      <button class="ghost" id="btn-browser-login">方式一：打开浏览器扫码（仅本机有浏览器时）</button>
+      <span id="login-state" style="align-self:center;color:var(--muted);font-size:12.5px"></span>
+    </div>
+
+    <hr>
+
+    <p><b>方式二：粘贴 Cookie / SESSDATA</b><br>
+      电脑浏览器登录 bilibili.com → F12 → Application/应用 → Cookies →
+      <code>https://www.bilibili.com</code> → 复制 <code>SESSDATA</code> 的值贴进来即可（只贴值也行）。</p>
+    <textarea id="cookie-input" placeholder="SESSDATA=xxxx  或直接粘贴 SESSDATA 的值"></textarea>
+    <div class="actions">
+      <button class="primary" id="btn-save-cookie">保存并验证</button>
+      <span class="sp"></span>
+      <button class="ghost" id="btn-close-dlg">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+const FRONT_VERSION = '1.6';
+const api = async (path, body) => {
+  const url = TOKEN ? path + (path.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN) : path;
+  const opt = body === undefined ? {} : {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  };
+  let r;
+  try {
+    r = await fetch(url, opt);
+  } catch (e) {
+    const err = new Error('网络不通（' + (e.message || e) + '）');
+    err.neterr = true;
+    throw err;
+  }
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.text()).slice(0, 160).replace(/\s+/g, ' '); } catch (e) {}
+    const err = new Error(`HTTP ${r.status}${detail ? ' ' + detail : ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+};
+
+function showSyncWarn(msg) {
+  const box = $('#sync-warn');
+  if (!box) return;
+  box.classList.remove('hidden');
+  $('#sync-warn-msg').textContent = msg;
+}
+function hideSyncWarn() {
+  const box = $('#sync-warn');
+  if (box) box.classList.add('hidden');
+}
+let episodes = [], qualities = [], selected = new Set(), pollTimer = null, jobRunning = false;
+let hasBrowser = true;
+
+function toast(msg, isErr) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.className = 'toast', 3200);
+}
+const fmtSize = n => n < 1024 ? n + 'B' : n < 1048576 ? (n/1024).toFixed(1) + 'KB'
+  : n < 1073741824 ? (n/1048576).toFixed(2) + 'MB' : (n/1073741824).toFixed(2) + 'GB';
+
+/* ---------- status ---------- */
+async function loadStatus() {
+  let s;
+  try {
+    s = await api('/api/status');
+  } catch (e) {
+    // 连 /api/status 都失败：不要吞掉，交给 syncState 去显示原因
+    setSync(false, '同步：连接失败');
+    throw e;
+  }
+  hasBrowser = !!s.browser;
+  $('#chip-acc').innerHTML = s.account
+    ? `账号：<b>${s.account.uname}</b> · ${s.account.label}`
+    : '账号：游客（最高 480P）';
+  $('#chip-acc').className = 'chip ' + (s.account ? 'ok' : 'warn');
+  $('#chip-ff').innerHTML = `ffmpeg：<b>${s.ffmpeg ? '已就绪' : '缺失'}</b>`;
+  $('#chip-ff').className = 'chip ' + (s.ffmpeg ? '' : 'warn');
+  $('#out-path').textContent = '输出：' + s.output;
+  $('#f-out').textContent = s.output;
+  const bBtn = $('#btn-browser-login');
+  if (bBtn) {
+    bBtn.disabled = !hasBrowser;
+    bBtn.textContent = hasBrowser
+      ? '方式一：打开浏览器扫码（仅本机有浏览器时）'
+      : '方式一：当前环境无浏览器（容器里请用下面的粘贴）';
+  }
+}
+$('#f-url').textContent = location.href;
+
+/* ---------- login ---------- */
+$('#btn-login').onclick = () => {
+  $('#mask').classList.add('show');
+  $('#login-state').textContent = '';
+};
+$('#btn-close-dlg').onclick = () => $('#mask').classList.remove('show');
+$('#mask').addEventListener('click', e => { if (e.target.id === 'mask') $('#mask').classList.remove('show'); });
+
+$('#btn-browser-login').onclick = async () => {
+  try {
+    const r = await api('/api/login', {timeout: 240});
+    if (!r.ok) return toast('登录启动失败', true);
+    $('#login-state').textContent = '等待扫码…';
+    const t = setInterval(async () => {
+      const st = await api('/api/login/status');
+      if (st.state === 'ok') {
+        clearInterval(t); $('#login-state').textContent = '成功';
+        await loadStatus();
+        toast(`登录成功：${st.uname}${st.vip ? '（大会员）' : ''}`);
+        $('#mask').classList.remove('show');
+      } else if (st.state === 'failed') {
+        clearInterval(t);
+        $('#login-state').textContent = '失败';
+        toast(st.msg || '未抓到登录态；容器里请用粘贴 Cookie', true);
+      }
+    }, 1500);
+  } catch (e) { /* 401 已提示 */ }
+};
+
+$('#btn-save-cookie').onclick = async () => {
+  const cookie = $('#cookie-input').value.trim();
+  if (!cookie) return toast('先粘贴 Cookie', true);
+  const btn = $('#btn-save-cookie');
+  btn.disabled = true;
+  try {
+    const r = await api('/api/cookie', {cookie});
+    if (!r.ok) return toast(r.error || '保存失败', true);
+    await loadStatus();
+    toast(`已登录：${r.account.uname}（${r.account.label}）`);
+    $('#mask').classList.remove('show');
+    $('#cookie-input').value = '';
+    if (episodes.length) $('#btn-resolve').click();   // 权限变了，刷新画质
+  } catch (e) { /* ignore */ } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ---------- resolve ---------- */
+$('#btn-resolve').onclick = resolve;
+$('#url').addEventListener('keydown', e => { if (e.key === 'Enter') resolve(); });
+
+async function resolve() {
+  const url = $('#url').value.trim();
+  if (!url) return toast('先粘贴链接', true);
+  const btn = $('#btn-resolve');
+  btn.disabled = true; btn.textContent = '解析中…';
+  try {
+    const r = await api('/api/resolve', {url});
+    if (!r.ok) { toast(r.error || '解析失败', true); return; }
+    renderSeason(r);
+    await loadStatus();
+  } catch (e) {
+    toast('请求失败：' + e, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '解析';
+  }
+}
+
+function renderSeason(r) {
+  episodes = r.episodes || [];
+  qualities = r.qualities || [];
+  selected = new Set(episodes.filter(e => e.section_type === 0).map(e => e.ep_id));
+
+  $('#sec-season').classList.remove('hidden');
+  const cov = r.season.cover || '';
+  $('#cover').src = cov ? '/api/cover?u=' + encodeURIComponent(cov) +
+    (TOKEN ? '&token=' + encodeURIComponent(TOKEN) : '') : '';
+  $('#cover').style.display = cov ? '' : 'none';
+  $('#s-title').textContent = r.season.title;
+  const mainN = episodes.filter(e => e.section_type === 0).length;
+  const pvN = episodes.length - mainN;
+  $('#s-meta').textContent = `${mainN} 集正片${pvN ? ` + ${pvN} 条 PV/花絮` : ''}`
+    + (r.ceiling ? ` · 账号画质上限：${qnName(r.ceiling)}` : '');
+  $('#s-acc').textContent = r.account
+    ? `当前账号：${r.account.uname}（${r.account.label}）`
+    : '当前账号：游客（1080P+ / 4K / HDR 需要登录大会员）';
+
+  // qualities
+  const sel = $('#sel-qn');
+  sel.innerHTML = '';
+  const avail = qualities.filter(q => !q.locked);
+  qualities.forEach(q => {
+    const o = document.createElement('option');
+    o.value = q.qn;
+    const cs = q.codecs.length
+      ? [...new Set(q.codecs.map(c => c.name))].join('/') + ` · ${q.codecs[0].w}x${q.codecs[0].h}`
+      : '需登录/大会员';
+    o.textContent = `${q.name}（qn ${q.qn}）${q.locked ? ' · 未解锁' : ' · ' + cs}`;
+    if (q.locked) o.disabled = true;
+    sel.appendChild(o);
+  });
+  if (avail.length) sel.value = avail[0].qn;
+
+  renderEps();
+  $('#btn-start').disabled = !selected.size;
+}
+
+function qnName(qn) {
+  const m = {127:'8K',126:'杜比视界',125:'HDR',120:'4K',116:'1080P60',112:'1080P+',
+             80:'1080P',74:'720P60',64:'720P',32:'480P',16:'360P'};
+  return m[qn] || String(qn);
+}
+
+function renderEps() {
+  const box = $('#eps');
+  box.innerHTML = '';
+  episodes.forEach(e => {
+    const div = document.createElement('label');
+    div.className = 'ep' + (selected.has(e.ep_id) ? ' on' : '');
+    const isPV = e.section_type === 1;
+    div.innerHTML = `
+      <input type="checkbox" ${selected.has(e.ep_id) ? 'checked' : ''}>
+      <div>
+        <div class="no">
+          <span>#${e.idx}</span>
+          ${isPV ? '<span class="tag pv">PV</span>' : `<span class="tag">EP ${e.index}</span>`}
+          ${e.badge ? `<span class="tag vip">${e.badge}</span>` : ''}
+        </div>
+        <div class="t">${e.title || (isPV ? 'PV' : '第 ' + e.index + ' 集')}</div>
+      </div>`;
+    div.querySelector('input').onchange = ev => {
+      if (ev.target.checked) selected.add(e.ep_id); else selected.delete(e.ep_id);
+      div.classList.toggle('on', ev.target.checked);
+      updateCount();
+    };
+    box.appendChild(div);
+  });
+  updateCount();
+}
+
+function updateCount() {
+  $('#sel-count').textContent = `已选 ${selected.size}`;
+  $('#btn-start').disabled = !selected.size || jobRunning;
+}
+
+document.querySelectorAll('[data-sel]').forEach(b => {
+  b.onclick = () => {
+    const m = b.dataset.sel;
+    if (m === 'all') selected = new Set(episodes.map(e => e.ep_id));
+    if (m === 'main') selected = new Set(episodes.filter(e => e.section_type === 0).map(e => e.ep_id));
+    if (m === 'pv') selected = new Set(episodes.filter(e => e.section_type === 1).map(e => e.ep_id));
+    if (m === 'invert') selected = new Set(episodes.filter(e => !selected.has(e.ep_id)).map(e => e.ep_id));
+    if (m === 'none') selected = new Set();
+    renderEps();
+  };
+});
+
+$('#btn-range').onclick = () => {
+  const spec = $('#range').value.trim();
+  if (!spec) return;
+  const want = new Set();
+  spec.split(/[,，\s]+/).forEach(p => {
+    p = p.trim(); if (!p) return;
+    const m = p.match(/^(\d+)?\s*-\s*(\d+)?$/);
+    if (m) {
+      const a = +(m[1] || 1), b = +(m[2] || episodes.length);
+      for (let i = a; i <= b; i++) want.add(i);
+    } else if (/^\d+$/.test(p)) want.add(+p);
+  });
+  selected = new Set(episodes.filter(e => want.has(e.idx)).map(e => e.ep_id));
+  renderEps();
+};
+
+/* ---------- download ---------- */
+function currentLimit() {
+  const v = $('#sel-limit').value;
+  if (v === 'custom') return Math.max(0, parseInt($('#limit-custom').value || '0', 10) || 0);
+  return +v || 0;
+}
+function delogoMode() { return $('#sel-delogo').value; }
+function currentDelogo() {
+  const area = $('#sel-area').value;
+  if (area === 'custom') return $('#delogo-custom').value.trim();
+  return area;
+}
+function currentMask() { return $('#delogo-mask').value.trim(); }
+
+$('#sel-area').onchange = () => {
+  const custom = $('#sel-area').value === 'custom';
+  $('#delogo-custom').classList.toggle('hidden', !custom);
+  if (custom) $('#delogo-custom').focus();
+};
+$('#sel-delogo').onchange = () => {
+  const mode = delogoMode();
+  $('#mask-field').classList.toggle('hidden', mode !== 'mask');
+  if (mode === 'mask') $('#delogo-mask').focus();
+};
+
+/* 运行中改限速：立刻打到 /api/limit，下载线程共用同一个令牌桶 */
+async function pushLimit(kb) {
+  if (!jobRunning) return;
+  const r = await api('/api/limit', {rate_limit: kb});
+  if (!r.ok) return toast(r.error || '调整限速失败', true);
+  $('#limit-now').textContent = kb ? `当前：${kb >= 1024 ? (kb / 1024).toFixed(kb % 1024 ? 1 : 0) + ' MB/s' : kb + ' KB/s'}` : '当前：不限速';
+  toast(kb ? `限速已改为 ${kb} KB/s（立即生效）` : '已取消限速');
+}
+
+$('#sel-limit').onchange = async () => {
+  const v = $('#sel-limit').value;
+  $('#limit-custom').classList.toggle('hidden', v !== 'custom');
+  if (v === 'custom') { $('#limit-custom').focus(); return; }
+  await pushLimit(+v || 0);
+};
+$('#limit-custom').onchange = () => pushLimit(currentLimit());
+
+document.querySelectorAll('[data-limit]').forEach(b => {
+  b.onclick = async () => {
+    const kb = +b.dataset.limit;
+    $('#sel-limit').value = String(kb);
+    $('#limit-custom').classList.add('hidden');
+    await pushLimit(kb);
+  };
+});
+
+$('#btn-start').onclick = async () => {
+  if (!selected.size) return;
+  const mode = delogoMode();
+  const delogo = currentDelogo();
+  if (mode) {
+    if (mode === 'mask' && !currentMask()) {
+      return toast('遮罩模式需要填 mask 图文件名（放到 /config 目录）', true);
+    }
+    if (mode !== 'mask' && !/^\d+\s*:\s*\d+\s*:\s*\d+\s*:\s*\d+(\s*;\s*\d+\s*:\s*\d+\s*:\s*\d+\s*:\s*\d+)*$/
+        .test(delogo) && !['tl', 'tr', 'bl', 'br'].includes(delogo)) {
+      return toast('水印区域格式应为 x:y:w:h，多个用 ; 分隔，例如 24:24:320:80', true);
+    }
+  }
+  const body = {
+    ep_ids: [...selected],
+    qn: +$('#sel-qn').value,
+    codec: $('#sel-codec').value,
+    audio: $('#sel-audio').value,
+    threads: +$('#sel-threads').value,
+    overwrite: $('#chk-over').checked,
+    rate_limit: currentLimit(),
+    delogo: mode ? delogo : null,
+    delogo_mode: mode || 'delogo',
+    delogo_range: $('#delogo-range').value.trim() || null,
+    delogo_mask: mode === 'mask' ? currentMask() : null,
+  };
+  const r = await api('/api/start', body);
+  if (!r.ok) return toast(r.error || '启动失败', true);
+  jobRunning = true;
+  $('#btn-start').disabled = true; $('#btn-cancel').disabled = false;
+  $('#sec-prog').classList.remove('hidden');
+  $('#fin').classList.add('hidden');
+  const bits = [`${r.count} 个任务`];
+  if (body.rate_limit) bits.push(`限速 ${body.rate_limit} KB/s`);
+  if (mode) bits.push(`去水印:${mode}`);
+  toast('开始下载：' + bits.join(' · '));
+  startPolling();
+};
+
+async function cancelJob() {
+  const r = await api('/api/cancel', {});
+  if (!r.ok) return toast(r.error || '取消失败', true);
+  toast('正在取消…');
+}
+$('#btn-cancel').onclick = cancelJob;
+$('#btn-cancel2').onclick = cancelJob;
+
+let jobDismissed = false;   // 用户点了"继续下载"后，不再自动弹回已完成的任务
+
+function setSync(ok, text) {
+  const c = $('#chip-sync');
+  c.className = 'chip ' + (ok ? 'ok' : 'warn');
+  c.textContent = text;
+}
+
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    let j;
+    try {
+      j = await api('/api/progress');
+      setSync(true, '同步：已连接');
+    } catch (e) {
+      setSync(false, '同步：断线重试…');
+      return;
+    }
+    renderProgress(j);
+    if (j.state !== 'running') {
+      clearInterval(pollTimer);
+      jobRunning = false;
+      $('#btn-start').disabled = !selected.size;
+      $('#btn-cancel').disabled = true;
+      $('#fin').classList.remove('hidden');
+      updateCount();
+      if (j.state === 'done') toast('全部任务结束');
+      if (j.state === 'cancelled') toast('已取消');
+    }
+  }, 800);
+}
+
+/* 跨设备同步：进度以服务端为准，任何设备打开都看到同一份 */
+let seenJobId = null;
+
+/* 把任意一份进度快照挂到界面上（running 就起轮询） */
+async function attachJob(j, silent) {
+  if (!(j.items || []).length) return false;
+  const running = j.state === 'running';
+  jobRunning = running;
+  jobDismissed = false;
+  $('#sec-prog').classList.remove('hidden');
+  $('#fin').classList.toggle('hidden', running);
+  $('#btn-cancel').disabled = !running;
+  $('#btn-start').disabled = running || !selected.size;
+  renderProgress(j);
+  if (running) {
+    startPolling();
+    if (!silent) toast(`已连上后台任务（${j.total || j.items.length} 项）—— 别的设备点开始也能同步到这里`);
+  }
+  return true;
+}
+
+async function syncState(silent) {
+  let s = null;
+  try {
+    s = await api('/api/state');
+    hideSyncWarn();
+    setSync(true, '同步：已连接');
+  } catch (e) {
+    // 服务端是旧版（没有 /api/state）时退化：直接看 /api/progress，同步照样生效
+    try {
+      const j = await api('/api/progress');
+      hideSyncWarn();
+      setSync(true, '同步：已连接（兼容模式）');
+      if ((j.items || []).length) {
+        if (j.id !== seenJobId) { silent = false; seenJobId = j.id; }
+        await attachJob(j, silent);
+      }
+    } catch (e2) {
+      setSync(false, '同步：断线重试…');
+      const err = (e2 && e2.message) || String(e2);
+      const hint = (e2 && e2.neterr)
+        ? '浏览器连不上这个地址。手机请用电脑的局域网 IP（如 http://192.168.x.x:8737/），' +
+          '并确认启动时加了 --host 0.0.0.0。'
+        : (e2 && e2.status === 401)
+          ? '需要令牌：地址后加 ?token=你的 BILI_TOKEN。'
+          : '服务端返回异常，可能是旧版本或反代拦截，看页脚「服务端」版本号。';
+      showSyncWarn(`/api/state 与 /api/progress 都失败：${err}。${hint}`);
+    }
+    return;
+  }
+  $('#f-sver').textContent = 'v' + (s.version || '?');
+  $('#f-host').textContent = s.machine ? `（${s.machine}）` : '';
+  if (s.version !== FRONT_VERSION) {
+    showSyncWarn(`服务端版本是 ${s.version || '未知（旧版）'}，前端是 v1.6。` +
+                 `同步需要新版服务端：把 app_all_in_one.py 换成最新版（或重跑 web.bat）后重启。`);
+  }
+  const lanHint = (s.lan && s.lan.length) ? s.lan[0] : '';
+  if (lanHint) {
+    $('#f-url').title = `手机可访问：http://${lanHint}:${s.port || location.port}/`;
+  }
+  if (s.resolved && !episodes.length) {
+    renderSeason(s.resolved);
+    if (s.input) $('#url').value = s.input;
+    if (!silent) toast('已恢复上次解析的列表');
+  }
+  const j = s.job;
+  if (!j) { seenJobId = null; return; }
+  if (j.id !== seenJobId) {   // 任务换了（可能是别的设备开的）→ 必须提示一次
+    silent = false;
+    seenJobId = j.id;
+  }
+
+  if (j.state === 'running') {
+    if (jobRunning && pollTimer) return;      // 已经在轮询，别重复接管
+    let full;
+    try { full = await api('/api/progress'); } catch (e) { return; }
+    await attachJob(full, silent);
+    return;
+  }
+
+  if (jobRunning || jobDismissed) return;
+  // 只有"刚跑完"的任务才自动弹出来给别的设备看；取消过的、很久以前的都不打扰
+  if (j.state === 'done' && (j.elapsed || 0) <= 3600) {
+    let full;
+    try { full = await api('/api/progress'); } catch (e) { return; }
+    if (!(full.items || []).length) return;
+    $('#sec-prog').classList.remove('hidden');
+    $('#fin').classList.remove('hidden');
+    $('#btn-cancel').disabled = true;
+    renderProgress(full);
+    if (!silent) toast('这个任务已经完成');
+  }
+}
+
+let lastItems = 0;
+function renderProgress(j) {
+  const items = j.items || [];
+  const running = j.state === 'running';
+  $('#p-ov').textContent = Math.round(j.progress || 0) + '%';
+  $('#p-ovbar').style.width = (j.progress || 0) + '%';
+  // 任务在跑时"取消"必须一直在、一直可点（两台设备的任何一个页面都一样）
+  $('#btn-cancel').disabled = !running;
+  $('#btn-cancel2').classList.toggle('hidden', !running);
+  $('#p-state').textContent = j.state === 'running'
+    ? `下载中… ${j.current || ''}/${j.total || ''}`
+    : j.state === 'done' ? `完成 · 用时 ${j.elapsed}s`
+    : j.state === 'cancelled' ? '已取消' : '';
+
+  const kb = j.rate_limit || 0;
+  $('#limit-now').textContent = '当前：' + (kb
+    ? (kb >= 1024 ? (kb / 1024).toFixed(kb % 1024 ? 1 : 0) + ' MB/s' : kb + ' KB/s')
+    : '不限速');
+  document.querySelectorAll('[data-limit]').forEach(b => {
+    b.disabled = j.state !== 'running';
+    b.style.opacity = (+b.dataset.limit === kb) ? '1' : '.6';
+    b.style.borderColor = (+b.dataset.limit === kb) ? 'var(--pink)' : '';
+  });
+
+  const box = $('#items');
+  if (items.length !== lastItems) { box.innerHTML = ''; lastItems = items.length; }
+  items.forEach((it, i) => {
+    let node = box.children[i];
+    if (!node) {
+      node = document.createElement('div');
+      node.className = 'item';
+      node.innerHTML = `<div class="top"><span class="nm"></span><span class="st"></span></div>
+        <div class="bar"><i></i></div>`;
+      box.appendChild(node);
+    }
+    node.querySelector('.nm').textContent = it.title ? `EP${it.index} ${it.title}` : (it.index || 'PV');
+    const st = node.querySelector('.st');
+    const pct = (it.pct || 0).toFixed(0);
+    let text;
+    if (it.status === 'running') {
+      text = `${pct}%` + (it.speed ? ` · ${it.speed}` : '') + (it.size ? ` · ${it.size}` : '');
+    } else if (it.status === 'done') {
+      text = '完成' + (it.size ? ` · ${it.size}` : '');
+    } else if (it.status === 'skipped') {
+      text = it.reason || '已存在，跳过';
+    } else {
+      text = it.reason || {pending: '等待', failed: '失败'}[it.status] || it.status;
+    }
+    st.textContent = text;
+    st.className = 'st ' + it.status;
+    node.querySelector('.bar > i').style.width = (it.status === 'done' || it.status === 'skipped'
+      ? 100 : it.pct || 0) + '%';
+  });
+
+  const log = $('#log');
+  log.textContent = (j.log || []).join('\n');
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ---------- after finish ---------- */
+$('#btn-again').onclick = () => {
+  jobDismissed = true;          // 别让心跳把这个已完成的任务又弹回来
+  $('#sec-prog').classList.add('hidden');
+  $('#fin').classList.add('hidden');
+  $('#items').innerHTML = ''; lastItems = 0; $('#log').textContent = '';
+  $('#url').value = ''; $('#url').focus();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+};
+
+loadStatus().catch(() => {}).then(() => syncState(false));
+setInterval(() => { if (!jobRunning) syncState(true); }, 5000);  // 别的设备开下时本页自动跟上
+</script>
+</body>
+</html>

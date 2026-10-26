@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Syntax check
+        run: python -m py_compile server.py core.py
+
+      - name: Import check (core has no side effects at import time)
+        run: python -c "import core; print('core ok', core.fmt_size(1024))"
+
+      - name: Smoke test (start server, hit healthz, shut down)
+        env:
+          BILI_HOST: 127.0.0.1
+          BILI_PORT: "8737"
+          BILI_NO_BROWSER: "1"
+          BILI_OUTPUT: ${{ runner.temp }}/downloads
+          BILI_COOKIE: ${{ runner.temp }}/cookies.txt
+          BILI_PROFILE: ${{ runner.temp }}/profile
+        run: |
+          python server.py &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8737/healthz >/dev/null 2>&1; then
+              echo "server is up after ${i} tries"; break
+            fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:8737/healthz
+          curl -fsS http://127.0.0.1:8737/api/status
+          curl -fsS http://127.0.0.1:8737/api/state
+          # 首页必须是新版（页脚带 FRONT_VERSION）
+          curl -fsS http://127.0.0.1:8737/ | grep -q 'id="f-ver"' && echo "index ok"
+          curl -fsS -X POST http://127.0.0.1:8737/api/shutdown >/dev/null || true
+
+      - name: Reject accidental secrets
+        run: |
+          if git ls-files | grep -Ei 'cookies\.txt|\.browser-profile|^bin/|^downloads/' ; then
+            echo "::error::敏感文件或运行产物被提交了"; exit 1
+          fi
+          if git grep -nE 'SESSDATA=[A-Za-z0-9%_-]{20,}' -- . ':!README.md' ; then
+            echo "::error::检测到疑似真实 Cookie"; exit 1
+          fi
+          echo "no secrets found"

@@ -1,0 +1,26 @@
+# 在仓库根目录执行：docker compose -f docker/compose.yml up -d --build
+services:
+  bili-pgc-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: bili-pgc-web:latest
+    container_name: bili-pgc-web
+    restart: unless-stopped
+    ports:
+      - "8737:8737"
+    environment:
+      TZ: Asia/Shanghai
+      # 局域网/公网暴露时建议设置，之后访问要带 ?token=…
+      # BILI_TOKEN: "change-me-to-a-long-random-string"
+      # 海外 IP 看 PGC 需要国内代理
+      # BILI_PROXY: "http://172.17.0.1:7890"
+    volumes:
+      - ../downloads:/downloads
+      - ./config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8737/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
